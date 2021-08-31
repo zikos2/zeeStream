@@ -2,63 +2,25 @@ const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 const { response } = require("express");
 
-
-const BASE_URL = "https://www.movs4u.life";
+const BASE_URL = "https://www.movs4u.vip";
 //Movies
 
 function getMovieStream(title) {
-  return fetch(`${BASE_URL}/movie/%D9%85%D8%AA%D8%B1%D8%AC%D9%85-${title}-%D9%81%D9%8A%D9%84%D9%85/`, { redirect: 'follow', timeout: 5000 })
-    .then(response => response.text())
+  return fetch(
+    `${BASE_URL}/movie/%D9%85%D8%AA%D8%B1%D8%AC%D9%85-${title}-%D9%81%D9%8A%D9%84%D9%85/`,
+    { redirect: "follow", timeout: 3000 }
+  )
+    .then((response) => response.text())
     .then((body) => {
       let $ = cheerio.load(body);
-      let link = $("#player-option-1").attr("data-url");
-
-
-      if (link.includes("main_player")) {
-        return fetch(link).then(response => response.text()).then(body => {
-
-          $ = cheerio.load(body);
-          link = $("meta").attr("content").slice(7);
-          console.log(link);
-          return fetch(link).then(response => response.text()).then(body => {
-            console.log(body);
-            $ = cheerio.load(body);
-            let sources = [];
-            $("source").each((i, el) => {
-              const element = $(el);
-              sources.push(element.attr("src"))
-
-            })
-            console.log(sources);
-            return sources;
-
-
-          })
-
-        })
-
-      } else {
-        return fetch(link)
-          .then(response => response.text())
-          .then(body => {
-            $ = cheerio.load(body);
-            link = $("iframe").attr("src")
-            return fetch(link).then(response => response.text()).then(body => {
-              $ = cheerio.load(body);
-              let sources = [];
-              $("source").each((i, el) => {
-                const element = $(el);
-                sources.push(element.attr("src"))
-
-              })
-              console.log(sources);
-              return sources;
-            }).catch(err => console.log(err));
-          }).catch(err => console.log(err));
-      }
-
-
-    }).catch(err => console.log(err));
+      let sources = [];
+      $(".getplay").each((_i, el) => {
+        if (el.attribs["titlea"] !== "trailer") {
+          sources.push(el.attribs["data-url"]);
+        }
+      });
+    })
+    .catch((err) => console.log(err));
 }
 
 function getMovies(num) {
@@ -67,7 +29,7 @@ function getMovies(num) {
     .then((body) => {
       const $ = cheerio.load(body);
       const movies = [];
-      $(".movies").each((i, el) => {
+      $(".row .col-post-movie").each((_i, el) => {
         const element = $(el);
 
         movie = {
@@ -80,7 +42,6 @@ function getMovies(num) {
         };
         movies.push(movie);
       });
-      console.log(movies)
       return movies;
     });
 }
@@ -93,12 +54,12 @@ function getIndianMovies(num) {
     .then((body) => {
       const $ = cheerio.load(body);
       const movies = [];
-      $(".movies").each((i, el) => {
+      $(".row .col-post-movie").each((_i, el) => {
         const element = $(el);
 
         movie = {
           img: element.find("img").attr("src"),
-          title: element.find("h4").html(),
+          title: element.find("h3 a").html(),
           link: element.find("a").attr("href"),
           rating: element.find(".rating").text(),
           quality: element.find(".quality").text(),
@@ -114,22 +75,21 @@ function getIndianMovies(num) {
 }
 
 function searchMovies(title) {
-  return fetch(`${BASE_URL}/?s=${title}`)
+  return fetch(`${BASE_URL}/movie/?search=${title}`)
     .then((response) => response.text())
     .then((body) => {
       const $ = cheerio.load(body);
       const movies = [];
-      $(".result-item article").each((i, el) => {
+      $(".row .col-post-movie").each((_i, el) => {
         const element = $(el);
 
         movie = {
-          img: element.find(".thumbnail img").attr("src"),
-          title: element.find(".title").text(),
+          img: element.find("img").attr("src"),
+          title: element.find("h3 a").text(),
           link: element.find("a").attr("href"),
           rating: element.find(".rating").text(),
-          type: element.find(".image a span").text(),
+          quality: element.find(".quality").text(),
           description: element.find(".contenido p").text(),
-          year: element.find(".year").text(),
         };
         movies.push(movie);
       });
@@ -137,41 +97,25 @@ function searchMovies(title) {
     });
 }
 
-
 function getMovie(title) {
   let url = `${BASE_URL}/movie/%D9%85%D8%AA%D8%B1%D8%AC%D9%85-${title}-%D9%81%D9%8A%D9%84%D9%85/`;
-
-  console.log(url);
   return fetch(url)
     .then((response) => response.text())
     .then((body) => {
       const $ = cheerio.load(body);
 
-      const img = $(".sheader .poster img").attr("src");
-      const tagline = $(".data .tagline").text();
-      const description = $('.info div[itemprop="description"]').text();
-      const date = $(".data .date").text();
-      const country = $(".data .country").text();
-      const runtime = $(".data .runtime").text();
-
-      const streamLinks = [];
-      $("#playeroptions li").each((i, el) => {
-        const element = $(el);
-        const link = element.attr("data-url");
-        streamLinks.push(link);
-      });
-      console.log(streamLinks);
-
       const movie = {
-        img,
-        tagline,
-        description,
-        date,
-        country,
-        runtime,
-        streamLinks,
+        img: $(".single-poster img").attr("src"),
+        title: $(".info-detail-single-title h3").text(),
+        description: $(".info-detail-single .post-content").text(),
+        streamLinks: $(".getplay")
+          .map((_i, el) => {
+            if (el.attribs["titlea"] !== "trailer") {
+              return el.attribs["data-url"];
+            }
+          })
+          .get(),
       };
-      console.log(movie);
       return movie;
     })
     .catch((err) => {
@@ -186,7 +130,7 @@ function getSeries(num) {
     .then((body) => {
       const $ = cheerio.load(body);
       let tvShows = [];
-      $(".tvshows").each((i, el) => {
+      $(".row .col-post-movie").each((i, el) => {
         const element = $(el);
 
         const tvShow = {
@@ -196,6 +140,7 @@ function getSeries(num) {
         };
         tvShows.push(tvShow);
       });
+
       return tvShows;
     })
     .catch((err) => {
@@ -204,21 +149,17 @@ function getSeries(num) {
 }
 
 function searchSeries(title) {
-  return fetch(`${BASE_URL}/?s=${title}`)
+  return fetch(`${BASE_URL}/tvshows/?search=${title}`)
     .then((response) => response.text())
     .then((body) => {
       const $ = cheerio.load(body);
       const series = [];
-      $(".result-item article").each((i, el) => {
+      $(".row .col-post-movie").each((_i, el) => {
         const element = $(el);
 
         serie = {
-          img: element.find(".thumbnail img").attr("src"),
-          title: element.find(".title a").text(),
-          link: element.find("a").attr("href"),
-          rating: element.find(".rating").text(),
-          type: element.find(".image a span").text(),
-          description: element.find(".contenido p").text(),
+          img: element.find("img").attr("src"),
+          title: element.find("h3 a").text(),
           year: element.find(".year").text(),
         };
         series.push(serie);
@@ -226,27 +167,51 @@ function searchSeries(title) {
       return series;
     });
 }
+
 function getSerieEpisodes(title) {
-  console.log(title);
   let uri = `${BASE_URL}/tvshows/${title}`;
   return fetch(uri)
     .then((response) => response.text())
     .then((body) => {
       const $ = cheerio.load(body);
-      let episodes = [];
-      $(".se-c li").each((i, el) => {
-        const element = $(el);
-        let episode = {
-          episodeTitle: element.find(".episodiotitle a").text(),
-          link: element.find(".episodiotitle a").attr("href"),
-          epNumber: element.find(".numerando").text(),
-          img: element.find("img").attr("src"),
-        };
 
-        episodes.push(episode);
-      });
-      console.log(episodes);
-      return episodes;
+      return Promise.all(
+        $(".colsbox-5 .col-post-movie")
+          .map(async (_, el) => {
+            const element = $(el);
+            const seasonLink = element.find(".fulllink").attr("href");
+
+            const seasonPage = await fetch(seasonLink);
+            const seasonPageText = await seasonPage.text();
+
+            const $sp = cheerio.load(seasonPageText);
+
+            return Promise.resolve(
+              $sp(".col-post-movie")
+                .map((_, epData) => {
+                  const ep = $(epData);
+
+                  const epNumber = ep.find("img").attr("alt");
+
+                  const episode = {
+                    episodetitle: ep.find(".movie-info h3 a").text(),
+                    epNumber: epNumber.substr(epNumber.indexOf(":") + 1).trim(),
+                  };
+
+                  return episode;
+                })
+                .get()
+            );
+          })
+          .get()
+      )
+        .then((seasons) => {
+          seasons.forEach((season) => season.reverse());
+          return [].concat.apply([], seasons);
+        })
+        .catch((err) => {
+          console.log("err: ", err);
+        });
     });
 }
 
@@ -258,7 +223,7 @@ function getEpisode(title, s, e) {
     .then((body) => {
       const $ = cheerio.load(body);
       const streamLinks = [];
-      $("#playeroptions li").each((i, el) => {
+      $(".getplay").each((_, el) => {
         const element = $(el);
         const link = element.attr("data-url");
         streamLinks.push(link);
@@ -274,8 +239,7 @@ function getEpisode(title, s, e) {
     });
 }
 
-
-getMovieStream("ana");
+getEpisode("legacies", 3, 1);
 
 module.exports = {
   getMovieStream,
